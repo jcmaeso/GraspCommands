@@ -25,10 +25,11 @@ classdef GraspAPI
                     overwrite = false;
                     obj.grasp_distance_unit = distance_unit;
                 otherwise
+                    obj.grasp_distance_unit = distance_unit;
+            end
                     obj.grasp_templates_folder = fullfile(cd,grasp_templates_folder);
                     obj.grasp_project_folder  = fullfile(cd,grasp_projects_folder,grasp_project_name);
                     obj.grasp_project_name = grasp_project_name;
-            end
             %Check if project folder exists, if not create it
             if ~exist(grasp_projects_folder, 'dir')
                mkdir(grasp_projects_folder);
@@ -58,19 +59,28 @@ classdef GraspAPI
             obj.create_write_file(output_file,gxp_template);
         end    
         function [] = create_global_coordinate_system(obj)
-            %Create_frequency_axis Create a coordinate system with x,y,z
-            %points and vectors
-            %   Detailed explanation goes here
+            %Create_frequency_axis Create a global coordinate system in
+            %0,0,0
+            %   Create basic coordinate system by initilizating an empty
+            %   one used as reference for other primary coordinate systems
             gc_template_text = obj.read_template('coor_sys_global.template');
             obj.append_to_file(obj.grasp_tor_handler,gc_template_text);
         end
         function [] = create_coordinate_system(obj,name,origin,x_axis,y_axis,ref_coor)
             %Create_frequency_axis Create a coordinate system with x,y,z
-            %points and vectors
-            %   Detailed explanation goes here
+            %points and direction vectors for x and y axis
             cs_template_text = obj.read_template('coor_sys.template');
             origin = obj.add_units(origin);
             cs_template_text = sprintf(cs_template_text,name,origin,x_axis,y_axis,ref_coor);
+            obj.append_to_file(obj.grasp_tor_handler,cs_template_text);
+        end
+        function [] = create_coordinate_system_euler(obj,name,origin,euler_angles,ref_coor)
+            %Create_frequency_axis Create a coordinate system with x,y,z
+            %points and euler angle for the rotation of the coordinate
+            %system
+            cs_template_text = obj.read_template('coor_sys_euler.template');
+            origin = obj.add_units(origin);
+            cs_template_text = sprintf(cs_template_text,name,origin,euler_angles,ref_coor);
             obj.append_to_file(obj.grasp_tor_handler,cs_template_text);
         end
     end

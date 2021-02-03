@@ -1,0 +1,8 @@
+%s coor_sys_euler_angles
+(
+    origin : struct(x: %s, y: %s, z: %s),
+    alpha : %3.6f,
+    beta : %3.6f,
+    gamma : %3.6f,
+    base : ref(%s)
+)
