@@ -1,0 +1,6 @@
+%s  reflector  
+(
+  coor_sys         : ref(%s),
+  surfaces         : sequence(%s),
+  rim              : ref(%s)
+)

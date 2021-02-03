@@ -1,0 +1,13 @@
+%s tabulated_rim_xy
+(
+    file_name: %s,
+    file_xy_number: struct(in_file:no, line:0, column:0),
+    file_xy_values: struct(start_line:2, x_column:1,y_column:2),
+    file_corner_points_id: struct(status: on, column:3,id_string:corner_point),
+    unit: %s,
+    point_ordering: %s,
+    file_form: free_format,
+    polar_origin: struct(status: user_defined, x: %s, y: %s),
+    rotation: %f,
+    interpolation: %s,
+)
