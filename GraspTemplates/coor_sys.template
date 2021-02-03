@@ -1,0 +1,7 @@
+%s  coor_sys  
+(
+      origin           : struct(x: %2.6f m, y: %2.6f m, z: %2.6f m),
+      x_axis           : struct(x: %2.6f, y: %2.6f, z: %2.6f),
+      y_axis           : struct(x: %2.6f, y: %2.6f, z: %2.6f),
+      base             : ref(%s)
+)
