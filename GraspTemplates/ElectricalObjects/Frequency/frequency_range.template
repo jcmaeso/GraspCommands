@@ -1,0 +1,4 @@
+%s frequency_range
+(
+frequency_range: struct(start_frequency:%s,end_frequency:%s,number_of_frequencies:%d)
+)

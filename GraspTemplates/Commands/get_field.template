@@ -1,0 +1,1 @@
+COMMAND OBJECT %s get_field(source: sequence(%s))

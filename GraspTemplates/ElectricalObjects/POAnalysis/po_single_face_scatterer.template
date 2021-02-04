@@ -1,0 +1,10 @@
+%s po_single_face_scatterer
+(
+    frequency: ref(%s),
+    scatterer: ref(%s),
+    method: %s,
+    po_points: struct(po1:%d, po2:%d),
+    ptd_points: sequence(%s),
+    coor_sys: ref(%s),
+    file_name: %s
+)

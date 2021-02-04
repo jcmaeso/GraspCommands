@@ -1,0 +1,10 @@
+%s tabulated_pattern
+(
+    frequency: ref(%s),
+    coor_sys: ref(%s),
+    file_name: %s,
+    file_format: TICRA,
+    number_of_cuts: %d,
+    near_far: %s,
+    far_forced: %s,
+)

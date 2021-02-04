@@ -1,7 +1,6 @@
 classdef GraspAPI
     %GRASPAPI Summary of this class goes here
     %   Detailed explanation goes here
-    
     properties
         grasp_templates_folder
         grasp_project_folder
@@ -9,10 +8,11 @@ classdef GraspAPI
         grasp_tci_handler
         grasp_tor_handler
         grasp_distance_unit
+        grasp_frequency_unit
     end
     
     methods
-        function obj = GraspAPI(grasp_templates_folder,grasp_projects_folder,grasp_project_name,distance_unit,overwrite)
+        function obj = GraspAPI(grasp_templates_folder,grasp_projects_folder,grasp_project_name,distance_unit,frequency_unit,overwrite)
             %GRASPAPI Construct an instance of this class
             %   Detailed explanation goes here
             switch(nargin)
@@ -21,11 +21,18 @@ classdef GraspAPI
                 case 3
                     overwrite = false;
                     obj.grasp_distance_unit = 'm';
+                    obj.grasp_frequency_unit = 'GHz';
                 case 4
                     overwrite = false;
                     obj.grasp_distance_unit = distance_unit;
+                    obj.grasp_frequency_unit = 'GHz';
+                case 5
+                    overwrite = false;
+                    obj.grasp_distance_unit = distance_unit;
+                    obj.grasp_frequency_unit = frequency_unit;
                 otherwise
                     obj.grasp_distance_unit = distance_unit;
+                    obj.grasp_frequency_unit = frequency_unit;
             end
                     obj.grasp_templates_folder = fullfile(cd,grasp_templates_folder);
                     obj.grasp_project_folder  = fullfile(cd,grasp_projects_folder,grasp_project_name);
@@ -45,10 +52,13 @@ classdef GraspAPI
                 obj.grasp_tci_handler = obj.check_create_file(fullfile(obj.grasp_project_folder,strcat(grasp_project_name,'.tci')));
                 obj.grasp_tor_handler = obj.check_create_file(fullfile(obj.grasp_project_folder,strcat(grasp_project_name,'.tor')));
             end
+            %Link .tor to .tci
+            obj.append_to_file(obj.grasp_tci_handler,sprintf("FILES READ ALL %s.tor",grasp_project_name));
         end
         function delete(obj)
             %Delete function is used for closing connection with files and
             %ssh
+            obj.append_to_file(obj.grasp_tci_handler,"QUIT");
             fclose(obj.grasp_tci_handler);
             fclose(obj.grasp_tor_handler);
         end
@@ -71,7 +81,7 @@ classdef GraspAPI
             %Create_frequency_axis Create a coordinate system with x,y,z
             %points and direction vectors for x and y axis
             cs_template_text = obj.read_template(fullfile("GeometricalObjects","CoordinateSystems",'coor_sys.template'));
-            origin = obj.add_units(origin);
+            origin = obj.add_distance_units(origin);
             cs_template_text = sprintf(cs_template_text,name,origin,x_axis,y_axis,ref_coor);
             obj.append_to_file(obj.grasp_tor_handler,cs_template_text);
         end
@@ -80,7 +90,7 @@ classdef GraspAPI
             %points and euler angle for the rotation of the coordinate
             %system
             cs_template_text = obj.read_template(fullfile("GeometricalObjects","CoordinateSystems",'coor_sys_euler.template'));
-            origin = obj.add_units(origin);
+            origin = obj.add_distance_units(origin);
             cs_template_text = sprintf(cs_template_text,name,origin,euler_angles,ref_coor);
             obj.append_to_file(obj.grasp_tor_handler,cs_template_text);
         end
@@ -100,8 +110,8 @@ classdef GraspAPI
                     vertex = [0,0,0];
             end
             surf_template_text = obj.read_template(fullfile("GeometricalObjects","Surfaces",'paraboloid.template'));
-            vertex = obj.add_units(vertex);
-            focal_distance = obj.add_units(focal_distance);
+            vertex = obj.add_distance_units(vertex);
+            focal_distance = obj.add_distance_units(focal_distance);
             surf_template_text = sprintf(surf_template_text,name,focal_distance,vertex);
             obj.append_to_file(obj.grasp_tor_handler,surf_template_text);
         end
@@ -125,7 +135,7 @@ classdef GraspAPI
                     interpolation = "linear";
             end
             rim_filename  = obj.create_rim_file(name,"%2.3f , %2.3f corner_point\n",point_list);
-            polar_origin = obj.add_units(polar_origin);
+            polar_origin = obj.add_distance_units(polar_origin);
             tab_rim_template_text = obj.read_template(fullfile("GeometricalObjects","Rims","Tabulated Rims","tabulated_rim_xy.template"));
             tab_rim_template_text = sprintf(tab_rim_template_text,name,rim_filename,obj.grasp_distance_unit,...
                 point_ordering,polar_origin,rotation_angle,interpolation);
@@ -137,6 +147,68 @@ classdef GraspAPI
             reflector_template_text = obj.read_template(fullfile("GeometricalObjects","Scatterer","reflector.template"));
             reflector_template_text = sprintf(reflector_template_text,name,coor_sys,surfaces_list,rim);
             obj.append_to_file(obj.grasp_tor_handler,reflector_template_text);
+        end
+        function [] = create_frequency_range(obj,name,min_freq,max_freq,n_freqs)
+            freq_template_text = obj.read_template(fullfile("ElectricalObjects","Frequency","frequency_range.template"));
+            freq_template_text = sprintf(freq_template_text,name,obj.add_frequency_units(min_freq),obj.add_frequency_units(max_freq),n_freqs);
+            obj.append_to_file(obj.grasp_tor_handler,freq_template_text);
+        end
+        function [] = create_frequency_list(obj,name,list_freqs)
+            freq_template_text = obj.read_template(fullfile("ElectricalObjects","Frequency","frequency_list.template"));
+            list_freqs = strjoin(string(obj.add_frequency_units(list_freqs)),',');
+            freq_template_text = sprintf(freq_template_text,name,list_freqs);
+            obj.append_to_file(obj.grasp_tor_handler,freq_template_text);
+        end
+        function [] = create_po_analysis(obj,name,freq_ref,scatterer_ref,method,coor_sys,po_points,ptd_points)
+            switch(nargin)
+                case {1,2,3,4,5}
+                    error("Not enough arguments")
+                case 6
+                    po_points = [0,0];
+                    ptd_points = [-1,0];
+                case 7
+                    ptd_points = [-1,0];
+            end
+            po_analysis_text = obj.read_template(fullfile("ElectricalObjects","POAnalysis","po_single_face_scatterer.template"));
+            [ncols, ~] = size(ptd_points);
+            ptd_string = strings(1,ncols);
+            for i = 1:ncols
+                ptd_string(i) = sprintf("struct(edge:%d,ptd:%d)",ptd_points(i,:));
+            end
+            ptd_string = strjoin(ptd_string,",");
+            po_analysis_text = sprintf(po_analysis_text,name,freq_ref,scatterer_ref,method,po_points,ptd_string,coor_sys,"po_ptd_currents.cur");
+            obj.append_to_file(obj.grasp_tor_handler,po_analysis_text);
+        end
+        
+        function [] = create_field_planar_cut(obj,name,coor_sys,near_dist,rho_range,phi_range,filename,freq_ref)
+            cut_template_text = obj.read_template(fullfile("ElectricalObjects","FieldStorage","Cut","planar_cut.template"));
+            rho_np = ceil(rho_range(3));
+            phi_np = ceil(phi_range(3));
+            near_dist = obj.add_distance_units(near_dist);
+            cut_template_text  = sprintf(cut_template_text,name,coor_sys,near_dist,rho_range(1:2),...
+                rho_np,obj.grasp_distance_unit,phi_range(1:2),phi_np,filename,freq_ref);
+            obj.append_to_file(obj.grasp_tor_handler,cut_template_text);
+        end
+        function [] = create_tabulated_feed(obj,name,freq_ref,coor_sys,filename_feed,n_cuts,near_far,far_forced)
+            feed_template_text = obj.read_template(fullfile("ElectricalObjects","Feed","TabulatedFeed","tabulated_pattern.template"));
+            feed_template_text = sprintf(feed_template_text,name,freq_ref,coor_sys,filename_feed,n_cuts,near_far,far_forced);
+            copyfile(fullfile(cd,"GraspFeeds",filename_feed),fullfile(obj.grasp_project_folder,filename_feed))
+            obj.append_to_file(obj.grasp_tor_handler,feed_template_text);
+        end
+        
+        %Commands
+        function [] = new_cmd_get_currents(obj,target,sources,field_accuracy,auto_convergence,convergence_references)
+            cmd_template_text = obj.read_template(fullfile("Commands","get_currents.template"));
+            sources = strjoin(strrep('ref(%s)','%s',sources),",");
+            convergence_references = strjoin(strrep('ref(%s)','%s',convergence_references),",");
+            cmd_template_text = sprintf(cmd_template_text,target,sources,field_accuracy,auto_convergence,convergence_references);
+            obj.append_to_file(obj.grasp_tci_handler,cmd_template_text);
+        end
+       function [] = new_cmd_get_field(obj,target,sources)
+            cmd_template_text = obj.read_template(fullfile("Commands","get_field.template"));
+            sources = strjoin(strrep('ref(%s)','%s',sources),",");
+            cmd_template_text = sprintf(cmd_template_text,target,sources);
+            obj.append_to_file(obj.grasp_tci_handler,cmd_template_text);
         end
     end
     
@@ -162,10 +234,16 @@ classdef GraspAPI
             fprintf(filehandler,"%s\n",text);
             fclose(filehandler);
         end
-        function [num_unit] = add_units(obj,values)
+        function [num_unit] = add_distance_units(obj,values)
+            num_unit = obj.add_units(values,obj.grasp_distance_unit);
+        end
+        function [num_unit] = add_frequency_units(obj,values)
+            num_unit = obj.add_units(values,obj.grasp_frequency_unit);
+        end
+        function [num_unit] = add_units(~,values,unit)
             num_unit = strings(size(values));
             for i = 1:length(values)
-                num_unit(i) = sprintf("%f %s",values(i),obj.grasp_distance_unit);
+                num_unit(i) = sprintf("%f %s",values(i),unit);
             end
         end
         function [rim_filename] = create_rim_file(obj,name,line_template,list)

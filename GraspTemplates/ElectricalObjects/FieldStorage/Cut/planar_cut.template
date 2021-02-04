@@ -1,0 +1,9 @@
+%s planar_cut
+(
+    coor_sys: ref(%s),
+    near_dist: %s,
+    rho_range: struct(start:%f, end:%f, np:%d,rho_unit:%s),
+    phi_range: struct(start:%f, end:%f, np:%d),
+    file_name: %s,
+    frequency: ref(%s)
+)

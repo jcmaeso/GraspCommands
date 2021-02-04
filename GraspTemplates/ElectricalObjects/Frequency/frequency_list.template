@@ -1,0 +1,4 @@
+%s frequency
+(
+frequency_list: sequence(%s)
+)

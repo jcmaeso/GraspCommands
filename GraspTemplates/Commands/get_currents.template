@@ -1,0 +1,1 @@
+COMMAND OBJECT %s get_currents(source: sequence(%s),field_accuracy: %f,auto_convergence_of_po: %s,convergence_on_output_grid : sequence(%s),integration_grid_limit: on)

@@ -2,8 +2,8 @@
 ## Project Structure to ignore
 ##---------------------------------------------------#
 /GraspProjects
-
-
+./*.pattern
+./*.ASC
 ##---------------------------------------------------
 ## Matlab specific stuff to ignore
 ##---------------------------------------------------# Windows default autosave extension
