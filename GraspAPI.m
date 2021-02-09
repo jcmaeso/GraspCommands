@@ -116,7 +116,7 @@ classdef GraspAPI
             obj.append_to_file(obj.grasp_tor_handler,surf_template_text);
         end
         
-        function [] = create_tabulated_rim_xy(obj,name,point_list,point_ordering,polar_origin,rotation_angle,interpolation)
+        function [] = create_tabulated_rim_xy(obj,name,point_list,point_ordering,polar_origin,translation,rotation_angle,interpolation)
             %create_tabulated_rim_xy tabulated rim from a list of points
             %----Input-----------
             %name: grasp name object (string) and .rim file
@@ -129,16 +129,21 @@ classdef GraspAPI
                 case {1,2,3,4}
                     error("Not enough arguments")
                 case 5
+                    translation = [0,0];
+                    rotation_angle = 0.0;
+                    interpolation = "linear";                    
+                case 6
                     rotation_angle = 0.0;
                     interpolation = "linear";
-                case 6
+                case 7
                     interpolation = "linear";
             end
             rim_filename  = obj.create_rim_file(name,"%2.3f , %2.3f corner_point\n",point_list);
             polar_origin = obj.add_distance_units(polar_origin);
+            translation = obj.add_distance_units(translation);
             tab_rim_template_text = obj.read_template(fullfile("GeometricalObjects","Rims","Tabulated Rims","tabulated_rim_xy.template"));
             tab_rim_template_text = sprintf(tab_rim_template_text,name,rim_filename,obj.grasp_distance_unit,...
-                point_ordering,polar_origin,rotation_angle,interpolation);
+                point_ordering,polar_origin,translation,rotation_angle,interpolation);
             obj.append_to_file(obj.grasp_tor_handler,tab_rim_template_text);
         end
         function [] = create_reflector(obj,name,coor_sys,surfaces,rim)
@@ -189,6 +194,17 @@ classdef GraspAPI
                 rho_np,obj.grasp_distance_unit,phi_range(1:2),phi_np,filename,freq_ref);
             obj.append_to_file(obj.grasp_tor_handler,cut_template_text);
         end
+        
+        function [] = create_field_planar_grid(obj,name,coor_sys,near_dist,x_range,y_range,polarization,filename,freq_ref)
+            cut_template_text = obj.read_template(fullfile("ElectricalObjects","FieldStorage","Grid","planar_grid.template"));
+            x_np = ceil(x_range(3));
+            y_np = ceil(y_range(3));
+            near_dist = obj.add_distance_units(near_dist);
+            cut_template_text  = sprintf(cut_template_text,name,coor_sys,near_dist,x_range(1:2),...
+                x_np,obj.grasp_distance_unit,y_range(1:2),y_np,polarization,filename,freq_ref);
+            obj.append_to_file(obj.grasp_tor_handler,cut_template_text);
+        end
+        
         function [] = create_tabulated_feed(obj,name,freq_ref,coor_sys,filename_feed,n_cuts,near_far,far_forced)
             feed_template_text = obj.read_template(fullfile("ElectricalObjects","Feed","TabulatedFeed","tabulated_pattern.template"));
             feed_template_text = sprintf(feed_template_text,name,freq_ref,coor_sys,filename_feed,n_cuts,near_far,far_forced);
@@ -258,6 +274,80 @@ classdef GraspAPI
             fprintf(rim_file,line_template,list);
             fclose(rim_file);
         end
-   end
+        function [n_lines] = get_n_lines(filename)
+            [status, cmdout] = system(sprintf('find /c /v "" %s',filename));
+            if(status~=1)
+                scanCell = textscan(cmdout,'%s %s %u');
+                n_lines = scanCell{3};
+            else
+                n_lines = -1;
+            end
+        end
+    end
+    methods(Static)
+        function [data_fields, x_axis] = read_cut(filename)
+            %Get number of lines with windows command
+            nlines = get_n_lines(filename);
+            %Find First Header
+            desc = readmatrix("plane_cut_200.txt",'Range',"A2:G2");
+            initial_rad = desc(1);
+            increment_rad = desc(2);
+            n_rad = desc(3);
+            %phi = desc(4);
+            cmps = desc(7);
+            phi_cuts = nlines/(n_rad+2);
+            %create matrix and read thru phicuts
+            data_matrix = zeros(phi_cuts,n_rad,cmps*2);
+            for i = 1:phi_cuts
+                range = sprintf("A%d:F%d",2*i+n_rad*(i-1)+1,(2+n_rad)*i);
+                data_matrix(i,:,:) = readmatrix("plane_cut_200.txt",'Range',range);
+            end
+            x_axis = (0:(n_rad-1))*increment_rad + initial_rad;
+            data_fields = complex(data_matrix(:,:,1:2:(end-1)),data_matrix(:,:,2:2:(end)));
+        end
+        function [data_fields, x_axis,y_axis] = read_grid(filename)
+            datafile = fopen(filename,"r");
+            %Find Header, dont care about bla bla
+            header_offset = 1;
+            while true
+                tline = fgetl(datafile);
+                header_offset = header_offset +1;
+                if tline == "++++"
+                    break
+                end
+            end
+            %Check file type
+            file_type = fgetl(datafile);
+            if strtrim(file_type) ~= "1"
+                error("This is not a GRASP grid file");
+            end
+            fclose(datafile);
+            %Read component options
+            range = sprintf("A%d:D%d",header_offset+1,header_offset+1);
+            components = readmatrix(filename,'Range',range);
+            n_components = components(3);
+            %We do not care about the center
+            %Find axes limits
+            range = sprintf("A%d:D%d",header_offset+3,header_offset+3);
+            axes = readmatrix(filename,'Range',range);
+            %Find number of rows, columns
+            range = sprintf("A%d:C%d",header_offset+4,header_offset+4);
+            points = readmatrix(filename,'Range',range);
+            %Create Axes
+            x_axis = linspace(axes(1),axes(3),points(1));
+            y_axis = linspace(axes(2),axes(4),points(2));
+            if n_components == 2
+                range = sprintf("A%d:D%d",header_offset+5,header_offset+5+points(1)*points(2));
+            elseif n_components ==3
+                range = sprintf("A%d:F%d",header_offset+5,header_offset+5+points(1)*points(2));
+            else
+                error("Unknown number of components")
+            end
+            data_matrix = readmatrix(filename,'Range',range);
+            data_matrix = reshape(data_matrix,[points(1) points(2) n_components*2]);
+            %Convert to complex
+            data_fields = complex(data_matrix(:,:,1:2:(end-1)),data_matrix(:,:,2:2:(end)));
+        end
+    end
 end
 

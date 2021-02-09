@@ -8,6 +8,7 @@
     point_ordering: %s,
     file_form: free_format,
     polar_origin: struct(status: user_defined, x: %s, y: %s),
+    translation: struct(x: %s, y: %s),
     rotation: %f,
     interpolation: %s,
 )

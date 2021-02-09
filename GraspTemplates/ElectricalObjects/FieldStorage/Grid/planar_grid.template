@@ -1,0 +1,9 @@
+%s planar_grid(
+    coor_sys: ref(%s),
+    near_dist: %s,
+    x_range: struct(start:%d, end:%d, np:%d,unit:%s),
+    y_range: struct(start:%d, end:%d, np:%d),
+    polarisation: %s,
+    file_name: %s,
+    frequency: ref(%s)
+)
